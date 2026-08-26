@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -153,6 +154,21 @@ fun SearchScreen(state: UiState, viewModel: BurrowViewModel) {
                             modifier = Modifier.size(32.dp),
                         ) {
                             Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = Burrow.Neutral600)
+                        }
+                        IconButton(
+                            onClick = {
+                                val text = if (r.type == ResultType.LINK) {
+                                    val link = r.link!!
+                                    "${link.name}\n${link.url}"
+                                } else {
+                                    val v = r.variable!!
+                                    "${v.key}: ${v.value}"
+                                }
+                                shareText(context, text)
+                            },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = "Share", tint = Burrow.Neutral600)
                         }
                     }
                 }

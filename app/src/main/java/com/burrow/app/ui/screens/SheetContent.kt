@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -33,7 +35,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import com.burrow.app.data.ID_SUFFIX_LENGTHS
 import com.burrow.app.ui.ICON_KEYS
 import com.burrow.app.ui.iconFor
 import com.burrow.app.ui.theme.Burrow
@@ -52,6 +57,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.VariableActions -> sheet.item.key
     Sheet.Settings -> "Settings"
     is Sheet.ChangePinForm -> "Change PIN"
+    is Sheet.IdGenerator -> "Random ID suffix"
 }
 
 @Composable
@@ -126,10 +132,15 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     viewModel.showToast("Link copied")
                     viewModel.closeSheet()
                 }
+                ActionButton("Share") {
+                    shareText(context, "${sheet.item.name}\n${sheet.item.url}")
+                    viewModel.closeSheet()
+                }
                 ActionButton("Edit") { viewModel.openEditLink(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteLink(sheet.item) }
             }
             is Sheet.VariableActions -> {
+                val context = androidx.compose.ui.platform.LocalContext.current
                 val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                 ActionButton("Copy key") {
                     clipboard.setText(androidx.compose.ui.text.AnnotatedString(sheet.item.key))
@@ -139,6 +150,10 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 ActionButton("Copy value") {
                     clipboard.setText(androidx.compose.ui.text.AnnotatedString(sheet.item.value))
                     viewModel.showToast("Value copied")
+                    viewModel.closeSheet()
+                }
+                ActionButton("Share") {
+                    shareText(context, "${sheet.item.key}: ${sheet.item.value}")
                     viewModel.closeSheet()
                 }
                 ActionButton("Edit") { viewModel.openEditVariable(sheet.item) }
@@ -155,6 +170,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 LabeledField("Confirm new PIN", sheet.confirm, viewModel::updatePinConfirm, "••••", keyboardType = KeyboardType.NumberPassword, password = true)
                 FormActions(viewModel)
             }
+            is Sheet.IdGenerator -> IdGeneratorContent(sheet, viewModel)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }
@@ -244,4 +260,69 @@ private fun ActionButton(label: String, danger: Boolean = false, onClick: () -> 
     ) {
         Text(label, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
     }
+}
+
+fun shareText(context: android.content.Context, text: String) {
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(send, null))
+}
+
+@Composable
+private fun IdGeneratorContent(sheet: Sheet.IdGenerator, viewModel: BurrowViewModel) {
+    val clipboard = LocalClipboardManager.current
+
+    Text("Length", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
+    androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ID_SUFFIX_LENGTHS.forEach { len ->
+            val selected = sheet.length == len
+            Text(
+                text = len.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) Burrow.Bg else Burrow.Text,
+                modifier = Modifier
+                    .background(if (selected) Burrow.Accent else Burrow.Neutral100, RoundedCornerShape(50))
+                    .clickable { viewModel.setIdGeneratorLength(len) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
+        }
+    }
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Burrow.Surface, RoundedCornerShape(20.dp))
+            .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            sheet.value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            color = Burrow.Text,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = { viewModel.regenerateId() }, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Refresh, contentDescription = "Regenerate", tint = Burrow.Neutral600)
+        }
+        IconButton(
+            onClick = {
+                clipboard.setText(AnnotatedString(sheet.value))
+                viewModel.showToast("Copied")
+            },
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = Burrow.Neutral600)
+        }
+    }
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(10.dp))
+    Text(
+        "Append this to an object id in your URLs/APIs so it can't be guessed.",
+        style = MaterialTheme.typography.bodySmall,
+        color = Burrow.Neutral600,
+    )
 }

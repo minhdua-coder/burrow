@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
@@ -127,6 +128,9 @@ private fun BrowseTopBar(state: UiState, viewModel: BurrowViewModel) {
             }
         }
 
+        IconButton(onClick = { viewModel.openIdGenerator() }, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Fingerprint, contentDescription = "Generate random ID suffix", tint = Burrow.Text)
+        }
         IconButton(onClick = { viewModel.openSettings() }, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Burrow.Text)
         }

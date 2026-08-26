@@ -19,6 +19,7 @@ sealed interface Sheet {
     data class VariableActions(val item: Variable) : Sheet
     data object Settings : Sheet
     data class ChangePinForm(val current: String = "", val next: String = "", val confirm: String = "") : Sheet
+    data class IdGenerator(val length: Int = 12, val value: String = "") : Sheet
 }
 
 data class ConfirmDeleteState(val kind: DeleteKind, val id: String, val name: String)

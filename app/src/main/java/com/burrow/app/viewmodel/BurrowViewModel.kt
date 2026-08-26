@@ -9,6 +9,7 @@ import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
 import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
+import com.burrow.app.data.generateRandomSlug
 import com.burrow.app.data.updateAtPath
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -140,6 +141,19 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun openSettings() = _state.update { it.copy(sheet = Sheet.Settings) }
     fun openChangePin() = _state.update { it.copy(sheet = Sheet.ChangePinForm()) }
     fun closeSheet() = _state.update { it.copy(sheet = null) }
+
+    fun openIdGenerator() {
+        val length = 12
+        _state.update { it.copy(sheet = Sheet.IdGenerator(length, generateRandomSlug(length))) }
+    }
+    fun regenerateId() = _state.update {
+        val s = it.sheet as? Sheet.IdGenerator ?: return@update it
+        it.copy(sheet = s.copy(value = generateRandomSlug(s.length)))
+    }
+    fun setIdGeneratorLength(length: Int) = _state.update {
+        val s = it.sheet as? Sheet.IdGenerator ?: return@update it
+        it.copy(sheet = s.copy(length = length, value = generateRandomSlug(length)))
+    }
 
     // ---- sheet field updates ----
     fun updateFolderFormName(v: String) = _state.update {
