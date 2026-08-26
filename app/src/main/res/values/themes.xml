@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Burrow" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F5EAD8</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#F5EAD8</item>
+    </style>
+</resources>
