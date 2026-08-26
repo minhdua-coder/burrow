@@ -27,17 +27,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Debug builds are signed with ~/.android/debug.keystore, which Gradle
-      # auto-generates on first use if it's missing. Caching it under a fixed
-      # key (not a content hash) keeps every release signed with the same
-      # key, so installing a new APK over an older one works as an update
-      # instead of failing with a signature mismatch.
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: debug-keystore-v1
-
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 

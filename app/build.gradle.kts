@@ -13,8 +13,22 @@ android {
         applicationId = "com.burrow.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
+    }
+
+    signingConfigs {
+        // Checked into git at keystore/debug.keystore so every build - local
+        // or CI, on any tag - signs with the same key. Relying on Gradle's
+        // implicit ~/.android/debug.keystore (or a per-ref CI cache of it)
+        // meant different tags could end up signed differently, which
+        // Android then refuses to install as an update over the last one.
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "burrow2026"
+            keyAlias = "burrowdebug"
+            keyPassword = "burrow2026"
+        }
     }
 
     buildTypes {
