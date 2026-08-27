@@ -7,9 +7,11 @@ import com.burrow.app.data.BurrowRepository
 import com.burrow.app.data.FolderNode
 import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
+import com.burrow.app.data.buildEnvFile
 import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
 import com.burrow.app.data.generateRandomSlug
+import com.burrow.app.data.parseEnvFile
 import com.burrow.app.data.updateAtPath
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +39,22 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun currentNode(): FolderNode = findNode(_state.value.tree, _state.value.path)
+
+    // ---- .env export/import (scoped to the current folder's variables) ----
+    fun exportEnvContent(): String = buildEnvFile(currentNode().variables)
+
+    fun importEnvContent(content: String) {
+        val entries = parseEnvFile(content)
+        if (entries.isEmpty()) {
+            showToast("No variables found in file")
+            return
+        }
+        mutateNode { node ->
+            val added = entries.map { e -> Variable(id = genId("v"), key = e.key, value = e.value, icon = "key") }
+            node.copy(variables = node.variables + added)
+        }
+        showToast("Imported ${entries.size} variable(s)")
+    }
 
     // ---- navigation ----
     fun openFolder(id: String) = _state.update { it.copy(path = it.path + id) }

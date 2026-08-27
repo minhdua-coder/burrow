@@ -160,6 +160,31 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteVariable(sheet.item) }
             }
             Sheet.Settings -> {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain"),
+                ) { uri ->
+                    if (uri != null) {
+                        runCatching {
+                            context.contentResolver.openOutputStream(uri)?.use {
+                                it.write(viewModel.exportEnvContent().toByteArray())
+                            }
+                        }
+                        viewModel.showToast("Exported")
+                    }
+                }
+                val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+                ) { uri ->
+                    if (uri != null) {
+                        val text = runCatching {
+                            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        }.getOrNull()
+                        if (text != null) viewModel.importEnvContent(text)
+                    }
+                }
+                ActionButton("Export variables (.env)") { exportLauncher.launch("burrow.env") }
+                ActionButton("Import variables (.env)") { importLauncher.launch("*/*") }
                 ActionButton("Change PIN") { viewModel.openChangePin() }
             }
             is Sheet.ChangePinForm -> {
