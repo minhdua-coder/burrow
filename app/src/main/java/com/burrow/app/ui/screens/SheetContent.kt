@@ -58,6 +58,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     Sheet.Settings -> "Settings"
     is Sheet.ChangePinForm -> "Change PIN"
     is Sheet.IdGenerator -> "Random ID suffix"
+    is Sheet.EnvImportForm -> "Import variables from text"
 }
 
 @Composable
@@ -184,7 +185,8 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     }
                 }
                 ActionButton("Export variables (.env)") { exportLauncher.launch("burrow.env") }
-                ActionButton("Import variables (.env)") { importLauncher.launch("*/*") }
+                ActionButton("Import from file (.env)") { importLauncher.launch("*/*") }
+                ActionButton("Import from pasted text") { viewModel.openEnvImportForm() }
                 ActionButton("Change PIN") { viewModel.openChangePin() }
             }
             is Sheet.ChangePinForm -> {
@@ -196,6 +198,17 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 FormActions(viewModel)
             }
             is Sheet.IdGenerator -> IdGeneratorContent(sheet, viewModel)
+            is Sheet.EnvImportForm -> {
+                LabeledField(
+                    "Paste .env content",
+                    sheet.text,
+                    viewModel::updateEnvImportText,
+                    "KEY=\"value\"\nANOTHER_KEY=\"value\"",
+                    monospace = true,
+                    multiline = true,
+                )
+                FormActions(viewModel)
+            }
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }

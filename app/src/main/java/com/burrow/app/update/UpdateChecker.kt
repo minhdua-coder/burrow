@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -23,6 +22,9 @@ import java.net.URL
 private const val GITHUB_REPO = "minhdua-coder/burrow"
 private const val CHANNEL_ID = "burrow_updates"
 private const val NOTIFICATION_ID = 1001
+
+const val EXTRA_PENDING_UPDATE_APK_URL = "com.burrow.app.PENDING_UPDATE_APK_URL"
+const val EXTRA_PENDING_UPDATE_TAG = "com.burrow.app.PENDING_UPDATE_TAG"
 
 private val Context.updateDataStore by preferencesDataStore(name = "burrow_update")
 private val LAST_NOTIFIED_TAG = stringPreferencesKey("last_notified_tag")
@@ -91,8 +93,12 @@ object UpdateChecker {
             manager.createNotificationChannel(channel)
         }
 
-        val targetUrl = release.apkUrl ?: release.htmlUrl
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            setClassName(context.packageName, "com.burrow.app.MainActivity")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(EXTRA_PENDING_UPDATE_APK_URL, release.apkUrl ?: release.htmlUrl)
+            putExtra(EXTRA_PENDING_UPDATE_TAG, release.tagName)
+        }
         val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

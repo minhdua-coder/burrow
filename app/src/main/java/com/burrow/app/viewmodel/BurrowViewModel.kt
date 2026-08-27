@@ -173,6 +173,12 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         it.copy(sheet = s.copy(length = length, value = generateRandomSlug(length)))
     }
 
+    fun openEnvImportForm() = _state.update { it.copy(sheet = Sheet.EnvImportForm()) }
+    fun updateEnvImportText(v: String) = _state.update {
+        val s = it.sheet as? Sheet.EnvImportForm ?: return@update it
+        it.copy(sheet = s.copy(text = v))
+    }
+
     // ---- sheet field updates ----
     fun updateFolderFormName(v: String) = _state.update {
         val s = it.sheet as? Sheet.FolderForm ?: return@update it
@@ -244,6 +250,9 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
                 _state.update { it.copy(pin = next) }
                 viewModelScope.launch { repository.savePin(next) }
                 showToast("PIN changed")
+            }
+            is Sheet.EnvImportForm -> {
+                importEnvContent(sheet.text)
             }
             else -> {}
         }
