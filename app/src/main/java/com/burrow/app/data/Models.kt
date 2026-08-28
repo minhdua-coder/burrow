@@ -20,6 +20,15 @@ data class LinkItem(
 )
 
 @Serializable
+data class FileItem(
+    val id: String,
+    val name: String,
+    val originalFileName: String,
+    val mimeType: String = "application/octet-stream",
+    val sizeBytes: Long = 0,
+)
+
+@Serializable
 data class FolderNode(
     val id: String,
     val name: String,
@@ -27,6 +36,7 @@ data class FolderNode(
     val folders: List<FolderNode> = emptyList(),
     val links: List<LinkItem> = emptyList(),
     val variables: List<Variable> = emptyList(),
+    val files: List<FileItem> = emptyList(),
 )
 
 fun genId(prefix: String): String = prefix + "_" + UUID.randomUUID().toString().take(8)
@@ -76,12 +86,13 @@ fun pathNames(tree: FolderNode, path: List<String>): List<String> {
     return names
 }
 
-enum class ResultType { LINK, VARIABLE }
+enum class ResultType { LINK, VARIABLE, FILE }
 
 data class SearchResult(
     val type: ResultType,
     val link: LinkItem? = null,
     val variable: Variable? = null,
+    val file: FileItem? = null,
     val pathIds: List<String>,
     val breadcrumb: String,
 )
@@ -106,10 +117,21 @@ fun flattenSearch(
             results.add(SearchResult(ResultType.VARIABLE, variable = v, pathIds = pathIds, breadcrumb = breadcrumb))
         }
     }
+    tree.files.forEach { f ->
+        if (f.name.lowercase().contains(q) || f.originalFileName.lowercase().contains(q)) {
+            results.add(SearchResult(ResultType.FILE, file = f, pathIds = pathIds, breadcrumb = breadcrumb))
+        }
+    }
     tree.folders.forEach { f ->
         results.addAll(flattenSearch(f, query, pathIds + f.id, pathNames + f.name))
     }
     return results
+}
+
+fun formatFileSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+    else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
 }
 
 fun maskedValue(value: String): String = "•".repeat(minOf(value.ifEmpty { "        " }.length, 24))

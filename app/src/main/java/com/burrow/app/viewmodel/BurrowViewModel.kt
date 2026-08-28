@@ -1,9 +1,12 @@
 package com.burrow.app.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.burrow.app.data.BurrowRepository
+import com.burrow.app.data.FileItem
+import com.burrow.app.data.FileStorage
 import com.burrow.app.data.FolderNode
 import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
@@ -112,6 +115,11 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
                     val moved = arr.removeAt(from); arr.add(to, moved)
                     node.copy(variables = arr)
                 }
+                ListKind.FILES -> {
+                    val arr = node.files.toMutableList()
+                    val moved = arr.removeAt(from); arr.add(to, moved)
+                    node.copy(files = arr)
+                }
             }
         }
     }
@@ -136,6 +144,14 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     private fun editVariable(id: String, key: String, value: String, icon: String) = mutateNode { node ->
         node.copy(variables = node.variables.map { if (it.id == id) it.copy(key = key, value = value, icon = icon) else it })
     }
+    private fun addFile(name: String, uri: Uri, originalFileName: String, mimeType: String, sizeBytes: Long) {
+        val id = genId("file")
+        FileStorage.save(getApplication(), uri, id)
+        mutateNode { node -> node.copy(files = node.files + FileItem(id, name, originalFileName, mimeType, sizeBytes)) }
+    }
+    private fun editFileMeta(id: String, name: String, originalFileName: String, mimeType: String, sizeBytes: Long) = mutateNode { node ->
+        node.copy(files = node.files.map { if (it.id == id) it.copy(name = name, originalFileName = originalFileName, mimeType = mimeType, sizeBytes = sizeBytes) else it })
+    }
 
     // ---- sheet open/edit ----
     fun openAddForm(kind: ListKind) {
@@ -143,6 +159,7 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
             ListKind.FOLDERS -> Sheet.FolderForm(FormMode.ADD)
             ListKind.LINKS -> Sheet.LinkForm(FormMode.ADD)
             ListKind.VARIABLES -> Sheet.VariableForm(FormMode.ADD)
+            ListKind.FILES -> Sheet.FileForm(FormMode.ADD)
         }
         _state.update { it.copy(sheet = sheet, fabOpen = false) }
     }
@@ -152,10 +169,14 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         _state.update { it.copy(sheet = Sheet.LinkForm(FormMode.EDIT, item.id, item.name, item.url, item.icon)) }
     fun openEditVariable(item: Variable) =
         _state.update { it.copy(sheet = Sheet.VariableForm(FormMode.EDIT, item.id, item.key, item.value, item.icon)) }
+    fun openEditFile(item: FileItem) = _state.update {
+        it.copy(sheet = Sheet.FileForm(FormMode.EDIT, item.id, item.name, null, item.originalFileName, item.mimeType, item.sizeBytes))
+    }
 
     fun openFolderActions(item: FolderNode) = _state.update { it.copy(sheet = Sheet.FolderActions(item)) }
     fun openLinkActions(item: LinkItem) = _state.update { it.copy(sheet = Sheet.LinkActions(item)) }
     fun openVariableActions(item: Variable) = _state.update { it.copy(sheet = Sheet.VariableActions(item)) }
+    fun openFileActions(item: FileItem) = _state.update { it.copy(sheet = Sheet.FileActions(item)) }
     fun openSettings() = _state.update { it.copy(sheet = Sheet.Settings) }
     fun openChangePin() = _state.update { it.copy(sheet = Sheet.ChangePinForm()) }
     fun closeSheet() = _state.update { it.copy(sheet = null) }
@@ -212,6 +233,15 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         val s = it.sheet as? Sheet.VariableForm ?: return@update it
         it.copy(sheet = s.copy(icon = v))
     }
+    fun updateFileFormName(v: String) = _state.update {
+        val s = it.sheet as? Sheet.FileForm ?: return@update it
+        it.copy(sheet = s.copy(name = v))
+    }
+    fun updateFileFormPicked(uri: Uri, originalFileName: String, mimeType: String, sizeBytes: Long) = _state.update {
+        val s = it.sheet as? Sheet.FileForm ?: return@update it
+        val name = if (s.name.isBlank()) originalFileName else s.name
+        it.copy(sheet = s.copy(name = name, pickedUri = uri, originalFileName = originalFileName, mimeType = mimeType, sizeBytes = sizeBytes))
+    }
     fun updatePinCurrent(v: String) = _state.update {
         val s = it.sheet as? Sheet.ChangePinForm ?: return@update it
         it.copy(sheet = s.copy(current = v.filter { c -> c.isDigit() }.take(4)))
@@ -254,6 +284,19 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
             is Sheet.EnvImportForm -> {
                 importEnvContent(sheet.text)
             }
+            is Sheet.FileForm -> {
+                val name = sheet.name.trim()
+                if (name.isEmpty()) return
+                if (sheet.mode == FormMode.ADD) {
+                    val uri = sheet.pickedUri
+                    if (uri == null) { showToast("Choose a file first"); return }
+                    addFile(name, uri, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes)
+                } else {
+                    val editId = sheet.editId!!
+                    sheet.pickedUri?.let { FileStorage.save(getApplication(), it, editId) }
+                    editFileMeta(editId, name, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes)
+                }
+            }
             else -> {}
         }
         _state.update { it.copy(sheet = null) }
@@ -263,6 +306,7 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun requestDeleteFolder(item: FolderNode) = _state.update { it.copy(confirmDelete = ConfirmDeleteState(DeleteKind.FOLDER, item.id, item.name), sheet = null) }
     fun requestDeleteLink(item: LinkItem) = _state.update { it.copy(confirmDelete = ConfirmDeleteState(DeleteKind.LINK, item.id, item.name), sheet = null) }
     fun requestDeleteVariable(item: Variable) = _state.update { it.copy(confirmDelete = ConfirmDeleteState(DeleteKind.VARIABLE, item.id, item.key), sheet = null) }
+    fun requestDeleteFile(item: FileItem) = _state.update { it.copy(confirmDelete = ConfirmDeleteState(DeleteKind.FILE, item.id, item.name), sheet = null) }
     fun cancelDelete() = _state.update { it.copy(confirmDelete = null) }
     fun confirmDeleteNow() {
         val cd = _state.value.confirmDelete ?: return
@@ -270,6 +314,10 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
             DeleteKind.FOLDER -> mutateNode { node -> node.copy(folders = node.folders.filter { it.id != cd.id }) }
             DeleteKind.LINK -> mutateNode { node -> node.copy(links = node.links.filter { it.id != cd.id }) }
             DeleteKind.VARIABLE -> mutateNode { node -> node.copy(variables = node.variables.filter { it.id != cd.id }) }
+            DeleteKind.FILE -> {
+                mutateNode { node -> node.copy(files = node.files.filter { it.id != cd.id }) }
+                FileStorage.delete(getApplication(), cd.id)
+            }
         }
         _state.update { it.copy(confirmDelete = null) }
     }

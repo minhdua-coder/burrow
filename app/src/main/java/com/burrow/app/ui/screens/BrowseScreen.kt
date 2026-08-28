@@ -1,5 +1,7 @@
 package com.burrow.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -26,9 +28,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -39,7 +43,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -49,10 +56,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.burrow.app.data.FileItem
+import com.burrow.app.data.FileStorage
 import com.burrow.app.data.FolderNode
 import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
 import com.burrow.app.data.findNode
+import com.burrow.app.data.formatFileSize
 import com.burrow.app.data.maskedValue
 import com.burrow.app.data.pathNames
 import com.burrow.app.ui.components.DragHandle
@@ -150,7 +160,20 @@ private fun BrowseContent(
     val hasFolders = node.folders.isNotEmpty()
     val hasLinks = node.links.isNotEmpty()
     val hasVariables = node.variables.isNotEmpty()
+    val hasFiles = node.files.isNotEmpty()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    var pendingDownloadFile by remember { mutableStateOf<FileItem?>(null) }
+    val downloadLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("*/*"),
+    ) { uri ->
+        val file = pendingDownloadFile
+        if (uri != null && file != null) {
+            val ok = FileStorage.exportTo(context, file.id, uri)
+            viewModel.showToast(if (ok) "Downloaded" else "Download failed")
+        }
+        pendingDownloadFile = null
+    }
 
     Column(
         modifier = Modifier
@@ -158,7 +181,7 @@ private fun BrowseContent(
             .verticalScroll(rememberScrollState())
             .padding(PaddingValues(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 120.dp)),
     ) {
-        if (!hasFolders && !hasLinks && !hasVariables) {
+        if (!hasFolders && !hasLinks && !hasVariables && !hasFiles) {
             EmptyState()
             return@Column
         }
@@ -247,6 +270,33 @@ private fun BrowseContent(
         } else {
             Text("No variables yet", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral500, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
         }
+
+        Spacer(Modifier.height(14.dp))
+        SectionHeader("Files")
+        Spacer(Modifier.height(2.dp))
+        if (hasFiles) {
+            ReorderableColumn(
+                items = node.files,
+                listKind = ListKind.FILES,
+                dragState = state.drag,
+                onDragStateChange = viewModel::setDrag,
+                onMove = { from, to -> viewModel.reorderList(ListKind.FILES, from, to) },
+            ) { item, _, isDragging, handleMod, rowMod ->
+                FileRow(
+                    item = item,
+                    isDragging = isDragging,
+                    rowModifier = rowMod,
+                    dragHandleModifier = handleMod,
+                    onDownload = {
+                        pendingDownloadFile = item
+                        downloadLauncher.launch(item.originalFileName.ifBlank { item.name })
+                    },
+                    onKebab = { viewModel.openFileActions(item) },
+                )
+            }
+        } else {
+            Text("No files yet", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral500, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+        }
     }
 }
 
@@ -266,7 +316,7 @@ private fun EmptyState() {
         Text("Nothing here yet", style = MaterialTheme.typography.titleSmall, color = Burrow.Text)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Add a folder, a link, or a variable with the + button.",
+            "Add a folder, a link, a variable, or a file with the + button.",
             style = MaterialTheme.typography.bodySmall,
             color = Burrow.Neutral600,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -396,10 +446,49 @@ private fun VariableRow(
 }
 
 @Composable
+private fun FileRow(
+    item: FileItem,
+    isDragging: Boolean,
+    rowModifier: Modifier,
+    dragHandleModifier: Modifier,
+    onDownload: () -> Unit,
+    onKebab: () -> Unit,
+) {
+    Row(
+        modifier = rowModifier
+            .fillMaxWidth()
+            .background(if (isDragging) Burrow.Accent100 else Color.Transparent, RoundedCornerShape(28.dp))
+            .padding(vertical = 9.dp, horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(dragHandleModifier.size(28.dp), contentAlignment = Alignment.Center) { DragHandle() }
+        RowIconBadge(Icons.Filled.InsertDriveFile, Burrow.Accent100, Burrow.Accent700, 32)
+        Column(Modifier.weight(1f)) {
+            Text(item.name, style = MaterialTheme.typography.bodyMedium, color = Burrow.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                "${item.originalFileName} · ${formatFileSize(item.sizeBytes)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Burrow.Neutral600,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onDownload, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.Download, contentDescription = "Download", tint = Burrow.Neutral600)
+        }
+        IconButton(onClick = onKebab, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Burrow.Neutral600)
+        }
+    }
+}
+
+@Composable
 private fun FabCluster(state: UiState, viewModel: BurrowViewModel, modifier: Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         AnimatedVisibility(visible = state.fabOpen) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                FabMiniButton("File") { viewModel.openAddForm(ListKind.FILES) }
                 FabMiniButton("Variable") { viewModel.openAddForm(ListKind.VARIABLES) }
                 FabMiniButton("Link") { viewModel.openAddForm(ListKind.LINKS) }
                 FabMiniButton("Folder") { viewModel.openAddForm(ListKind.FOLDERS) }

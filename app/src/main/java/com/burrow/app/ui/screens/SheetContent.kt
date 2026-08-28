@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
@@ -59,6 +60,8 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.ChangePinForm -> "Change PIN"
     is Sheet.IdGenerator -> "Random ID suffix"
     is Sheet.EnvImportForm -> "Import variables from text"
+    is Sheet.FileForm -> if (sheet.mode == FormMode.ADD) "New file" else "Rename file"
+    is Sheet.FileActions -> sheet.item.name
 }
 
 @Composable
@@ -160,6 +163,22 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 ActionButton("Edit") { viewModel.openEditVariable(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteVariable(sheet.item) }
             }
+            is Sheet.FileActions -> {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val downloadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.CreateDocument("*/*"),
+                ) { uri ->
+                    if (uri != null) {
+                        val ok = com.burrow.app.data.FileStorage.exportTo(context, sheet.item.id, uri)
+                        viewModel.showToast(if (ok) "Downloaded" else "Download failed")
+                    }
+                }
+                ActionButton("Download") {
+                    downloadLauncher.launch(sheet.item.originalFileName.ifBlank { sheet.item.name })
+                }
+                ActionButton("Rename") { viewModel.openEditFile(sheet.item) }
+                ActionButton("Delete", danger = true) { viewModel.requestDeleteFile(sheet.item) }
+            }
             Sheet.Settings -> {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -198,6 +217,42 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 FormActions(viewModel)
             }
             is Sheet.IdGenerator -> IdGeneratorContent(sheet, viewModel)
+            is Sheet.FileForm -> {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val pickFileLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+                ) { uri ->
+                    if (uri != null) {
+                        val displayName = com.burrow.app.data.FileStorage.queryDisplayName(context, uri) ?: "file"
+                        val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                        val size = com.burrow.app.data.FileStorage.querySize(context, uri)
+                        viewModel.updateFileFormPicked(uri, displayName, mimeType, size)
+                    }
+                }
+                LabeledField("Name", sheet.name, viewModel::updateFileFormName, "e.g. Server backup")
+                androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+                Text("File", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
+                androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Burrow.Surface, RoundedCornerShape(20.dp))
+                        .clickable { pickFileLauncher.launch("*/*") }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        sheet.originalFileName ?: "Choose a file…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (sheet.originalFileName != null) Burrow.Text else Burrow.Neutral600,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(Icons.Filled.AttachFile, contentDescription = "Choose file", tint = Burrow.Neutral600)
+                }
+                FormActions(viewModel)
+            }
             is Sheet.EnvImportForm -> {
                 LabeledField(
                     "Paste .env content",
