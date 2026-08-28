@@ -208,7 +208,7 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun openGithubTokenTool() {
         val node = currentNode()
         val detected = detectGithubAppConfig(node)
-        val label = if (_state.value.path.isEmpty()) "Burrow" else pathNames(_state.value.tree, _state.value.path).joinToString(" / ")
+        val label = if (_state.value.path.isEmpty()) "Warren" else pathNames(_state.value.tree, _state.value.path).joinToString(" / ")
         _state.update {
             it.copy(
                 sheet = Sheet.GithubTokenTool(

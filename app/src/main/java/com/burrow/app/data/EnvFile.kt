@@ -14,7 +14,7 @@ private fun quoteEnvValue(value: String): String {
 fun buildEnvFile(variables: List<Variable>): String {
     if (variables.isEmpty()) return "# No variables to export\n"
     val seen = mutableSetOf<String>()
-    val sb = StringBuilder("# Exported from Burrow\n")
+    val sb = StringBuilder("# Exported from Warren\n")
     variables.forEach { v ->
         val base = envKeyFor(v.key)
         var name = base

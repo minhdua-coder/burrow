@@ -42,7 +42,7 @@ data class FolderNode(
 fun genId(prefix: String): String = prefix + "_" + UUID.randomUUID().toString().take(8)
 
 fun seedTree(): FolderNode = FolderNode(
-    id = "root", name = "Burrow", color = "sand",
+    id = "root", name = "Warren", color = "sand",
     folders = listOf(
         FolderNode(
             id = "kaspersky", name = "Kaspersky", color = "terracotta",
@@ -105,7 +105,7 @@ fun flattenSearch(
 ): List<SearchResult> {
     val q = query.trim().lowercase()
     val results = mutableListOf<SearchResult>()
-    val breadcrumb = if (pathNames.isNotEmpty()) pathNames.joinToString(" / ") else "Burrow"
+    val breadcrumb = if (pathNames.isNotEmpty()) pathNames.joinToString(" / ") else "Warren"
 
     tree.links.forEach { l ->
         if (l.name.lowercase().contains(q) || l.url.lowercase().contains(q)) {

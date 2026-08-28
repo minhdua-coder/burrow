@@ -124,7 +124,7 @@ object UpdateChecker {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle("Burrow ${release.tagName} available")
+            .setContentTitle("Warren ${release.tagName} available")
             .setContentText("Tap to download the update")
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

@@ -34,7 +34,7 @@ sealed interface Sheet {
     data class IdGenerator(val length: Int = 12, val value: String = "") : Sheet
     data class EnvImportForm(val text: String = "") : Sheet
     data class GithubTokenTool(
-        val folderLabel: String = "Burrow",
+        val folderLabel: String = "Warren",
         val appId: String? = null,
         val installationId: String? = null,
         val privateKeyFile: FileItem? = null,

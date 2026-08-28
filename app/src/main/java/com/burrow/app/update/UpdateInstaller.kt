@@ -24,12 +24,12 @@ object UpdateInstaller {
 
     fun downloadAndInstall(context: Context, apkUrl: String, versionTag: String) {
         val appContext = context.applicationContext
-        val fileName = "burrow-$versionTag.apk"
+        val fileName = "warren-$versionTag.apk"
         val destFile = File(appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
         if (destFile.exists()) destFile.delete()
 
         val request = DownloadManager.Request(Uri.parse(apkUrl))
-            .setTitle("Burrow $versionTag")
+            .setTitle("Warren $versionTag")
             .setDescription("Downloading update")
             .setDestinationUri(Uri.fromFile(destFile))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -37,7 +37,7 @@ object UpdateInstaller {
         val manager = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val downloadId = manager.enqueue(request)
 
-        Toast.makeText(appContext, "Downloading Burrow $versionTag…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(appContext, "Downloading Warren $versionTag…", Toast.LENGTH_SHORT).show()
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiverContext: Context, intent: Intent) {

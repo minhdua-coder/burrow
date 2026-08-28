@@ -104,7 +104,7 @@ fun BrowseScreen(state: UiState, viewModel: BurrowViewModel) {
 @Composable
 private fun BrowseTopBar(state: UiState, viewModel: BurrowViewModel) {
     val canGoBack = state.path.isNotEmpty()
-    val title = if (canGoBack) pathNames(state.tree, state.path).joinToString(" / ") else "Burrow"
+    val title = if (canGoBack) pathNames(state.tree, state.path).joinToString(" / ") else "Warren"
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp, start = 6.dp, end = 6.dp),
