@@ -53,14 +53,14 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun importEnvContent(content: String) {
         val entries = parseEnvFile(content)
         if (entries.isEmpty()) {
-            showToast("No variables found in file")
+            showToast("No environments found in file")
             return
         }
         mutateNode { node ->
-            val added = entries.map { e -> Variable(id = genId("v"), key = e.key, value = e.value, icon = "key") }
+            val added = entries.map { e -> Variable(id = genId("v"), key = e.key, value = e.value, icon = "key", isSecret = false) }
             node.copy(variables = node.variables + added)
         }
-        showToast("Imported ${entries.size} variable(s)")
+        showToast("Imported ${entries.size} environment(s)")
     }
 
     // ---- navigation ----
@@ -142,19 +142,19 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     private fun editLink(id: String, name: String, url: String, icon: String) = mutateNode { node ->
         node.copy(links = node.links.map { if (it.id == id) it.copy(name = name, url = url, icon = icon) else it })
     }
-    private fun addVariable(key: String, value: String, icon: String) = mutateNode { node ->
-        node.copy(variables = node.variables + Variable(id = genId("v"), key = key, value = value, icon = icon))
+    private fun addVariable(key: String, value: String, icon: String, isSecret: Boolean) = mutateNode { node ->
+        node.copy(variables = node.variables + Variable(id = genId("v"), key = key, value = value, icon = icon, isSecret = isSecret))
     }
-    private fun editVariable(id: String, key: String, value: String, icon: String) = mutateNode { node ->
-        node.copy(variables = node.variables.map { if (it.id == id) it.copy(key = key, value = value, icon = icon) else it })
+    private fun editVariable(id: String, key: String, value: String, icon: String, isSecret: Boolean) = mutateNode { node ->
+        node.copy(variables = node.variables.map { if (it.id == id) it.copy(key = key, value = value, icon = icon, isSecret = isSecret) else it })
     }
-    private fun addFile(name: String, uri: Uri, originalFileName: String, mimeType: String, sizeBytes: Long) {
+    private fun addFile(name: String, uri: Uri, originalFileName: String, mimeType: String, sizeBytes: Long, icon: String) {
         val id = genId("file")
         FileStorage.save(getApplication(), uri, id)
-        mutateNode { node -> node.copy(files = node.files + FileItem(id, name, originalFileName, mimeType, sizeBytes)) }
+        mutateNode { node -> node.copy(files = node.files + FileItem(id, name, originalFileName, mimeType, sizeBytes, icon)) }
     }
-    private fun editFileMeta(id: String, name: String, originalFileName: String, mimeType: String, sizeBytes: Long) = mutateNode { node ->
-        node.copy(files = node.files.map { if (it.id == id) it.copy(name = name, originalFileName = originalFileName, mimeType = mimeType, sizeBytes = sizeBytes) else it })
+    private fun editFileMeta(id: String, name: String, originalFileName: String, mimeType: String, sizeBytes: Long, icon: String) = mutateNode { node ->
+        node.copy(files = node.files.map { if (it.id == id) it.copy(name = name, originalFileName = originalFileName, mimeType = mimeType, sizeBytes = sizeBytes, icon = icon) else it })
     }
 
     // ---- sheet open/edit ----
@@ -172,9 +172,9 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun openEditLink(item: LinkItem) =
         _state.update { it.copy(sheet = Sheet.LinkForm(FormMode.EDIT, item.id, item.name, item.url, item.icon)) }
     fun openEditVariable(item: Variable) =
-        _state.update { it.copy(sheet = Sheet.VariableForm(FormMode.EDIT, item.id, item.key, item.value, item.icon)) }
+        _state.update { it.copy(sheet = Sheet.VariableForm(FormMode.EDIT, item.id, item.key, item.value, item.icon, item.isSecret)) }
     fun openEditFile(item: FileItem) = _state.update {
-        it.copy(sheet = Sheet.FileForm(FormMode.EDIT, item.id, item.name, null, item.originalFileName, item.mimeType, item.sizeBytes))
+        it.copy(sheet = Sheet.FileForm(FormMode.EDIT, item.id, item.name, null, item.originalFileName, item.mimeType, item.sizeBytes, item.icon))
     }
 
     fun openFolderActions(item: FolderNode) = _state.update { it.copy(sheet = Sheet.FolderActions(item)) }
@@ -220,8 +220,8 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     private fun saveGeneratedKeyAsVariable(value: String) {
         val name = "Key " + java.time.LocalDateTime.now()
             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        mutateNode { node -> node.copy(variables = node.variables + Variable(id = genId("v"), key = name, value = value, icon = "key")) }
-        showToast("Saved as variable \"$name\"")
+        mutateNode { node -> node.copy(variables = node.variables + Variable(id = genId("v"), key = name, value = value, icon = "key", isSecret = true)) }
+        showToast("Saved as secret \"$name\"")
     }
 
     fun openEnvImportForm() = _state.update { it.copy(sheet = Sheet.EnvImportForm()) }
@@ -319,9 +319,17 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         val s = it.sheet as? Sheet.VariableForm ?: return@update it
         it.copy(sheet = s.copy(icon = v))
     }
+    fun updateVariableFormIsSecret(v: Boolean) = _state.update {
+        val s = it.sheet as? Sheet.VariableForm ?: return@update it
+        it.copy(sheet = s.copy(isSecret = v))
+    }
     fun updateFileFormName(v: String) = _state.update {
         val s = it.sheet as? Sheet.FileForm ?: return@update it
         it.copy(sheet = s.copy(name = v))
+    }
+    fun updateFileFormIcon(v: String) = _state.update {
+        val s = it.sheet as? Sheet.FileForm ?: return@update it
+        it.copy(sheet = s.copy(icon = v))
     }
     fun updateFileFormPicked(uri: Uri, originalFileName: String, mimeType: String, sizeBytes: Long) = _state.update {
         val s = it.sheet as? Sheet.FileForm ?: return@update it
@@ -356,7 +364,11 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
             is Sheet.VariableForm -> {
                 val key = sheet.key.trim()
                 if (key.isEmpty()) return
-                if (sheet.mode == FormMode.ADD) addVariable(key, sheet.value, sheet.icon) else editVariable(sheet.editId!!, key, sheet.value, sheet.icon)
+                if (sheet.mode == FormMode.ADD) {
+                    addVariable(key, sheet.value, sheet.icon, sheet.isSecret)
+                } else {
+                    editVariable(sheet.editId!!, key, sheet.value, sheet.icon, sheet.isSecret)
+                }
             }
             is Sheet.ChangePinForm -> {
                 val cur = sheet.current.trim(); val next = sheet.next.trim(); val conf = sheet.confirm.trim()
@@ -376,11 +388,11 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
                 if (sheet.mode == FormMode.ADD) {
                     val uri = sheet.pickedUri
                     if (uri == null) { showToast("Choose a file first"); return }
-                    addFile(name, uri, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes)
+                    addFile(name, uri, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes, sheet.icon)
                 } else {
                     val editId = sheet.editId!!
                     sheet.pickedUri?.let { FileStorage.save(getApplication(), it, editId) }
-                    editFileMeta(editId, name, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes)
+                    editFileMeta(editId, name, sheet.originalFileName ?: name, sheet.mimeType, sheet.sizeBytes, sheet.icon)
                 }
             }
             else -> {}

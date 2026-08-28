@@ -16,7 +16,14 @@ enum class RandomFormat { SUFFIX, KEY }
 sealed interface Sheet {
     data class FolderForm(val mode: FormMode, val editId: String? = null, val name: String = "", val color: String = "sand") : Sheet
     data class LinkForm(val mode: FormMode, val editId: String? = null, val name: String = "", val url: String = "", val icon: String = "link") : Sheet
-    data class VariableForm(val mode: FormMode, val editId: String? = null, val key: String = "", val value: String = "", val icon: String = "key") : Sheet
+    data class VariableForm(
+        val mode: FormMode,
+        val editId: String? = null,
+        val key: String = "",
+        val value: String = "",
+        val icon: String = "key",
+        val isSecret: Boolean = false,
+    ) : Sheet
     data class FileForm(
         val mode: FormMode,
         val editId: String? = null,
@@ -25,6 +32,7 @@ sealed interface Sheet {
         val originalFileName: String? = null,
         val mimeType: String = "application/octet-stream",
         val sizeBytes: Long = 0,
+        val icon: String = "file",
     ) : Sheet
     data class FolderActions(val item: FolderNode) : Sheet
     data class LinkActions(val item: LinkItem) : Sheet

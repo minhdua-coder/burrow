@@ -9,6 +9,9 @@ data class Variable(
     val key: String,
     val value: String,
     val icon: String = "key",
+    // Defaults true so pre-existing data (saved before this field existed) keeps its
+    // masked display; new items explicitly pass false from the add form.
+    val isSecret: Boolean = true,
 )
 
 @Serializable
@@ -26,6 +29,7 @@ data class FileItem(
     val originalFileName: String,
     val mimeType: String = "application/octet-stream",
     val sizeBytes: Long = 0,
+    val icon: String = "file",
 )
 
 @Serializable
@@ -53,8 +57,8 @@ fun seedTree(): FolderNode = FolderNode(
                         LinkItem(id = "l1", name = "Swagger API", url = "http://160.22.161.35/kaperky/swagger/index.html", icon = "globe"),
                     ),
                     variables = listOf(
-                        Variable(id = "v1", key = "SSH VPS", value = "ssh root@160.22.161.35 -p 22", icon = "terminal"),
-                        Variable(id = "v2", key = "DB Connection String", value = "postgresql://kaspersky_user:S3cr3tPass@160.22.161.35:5432/kaspersky_db", icon = "database"),
+                        Variable(id = "v1", key = "SSH VPS", value = "ssh root@160.22.161.35 -p 22", icon = "terminal", isSecret = true),
+                        Variable(id = "v2", key = "DB Connection String", value = "postgresql://kaspersky_user:S3cr3tPass@160.22.161.35:5432/kaspersky_db", icon = "database", isSecret = true),
                     ),
                 ),
             ),

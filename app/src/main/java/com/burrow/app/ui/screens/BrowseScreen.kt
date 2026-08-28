@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -243,7 +242,7 @@ private fun BrowseContent(
         }
 
         Spacer(Modifier.height(14.dp))
-        SectionHeader("Variables")
+        SectionHeader("Environments")
         Spacer(Modifier.height(2.dp))
         if (hasVariables) {
             ReorderableColumn(
@@ -268,7 +267,7 @@ private fun BrowseContent(
                 )
             }
         } else {
-            Text("No variables yet", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral500, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+            Text("No environments yet", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral500, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
         }
 
         Spacer(Modifier.height(14.dp))
@@ -316,7 +315,7 @@ private fun EmptyState() {
         Text("Nothing here yet", style = MaterialTheme.typography.titleSmall, color = Burrow.Text)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Add a folder, a link, a variable, or a file with the + button.",
+            "Add a folder, a link, an environment, or a file with the + button.",
             style = MaterialTheme.typography.bodySmall,
             color = Burrow.Neutral600,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -419,22 +418,26 @@ private fun VariableRow(
     ) {
         Box(dragHandleModifier.size(28.dp), contentAlignment = Alignment.Center) { DragHandle() }
         RowIconBadge(iconFor(item.icon), Burrow.Accent2_100, Burrow.Accent2_700, 32)
-        Column(Modifier.weight(1f).clickable(onClick = onToggleReveal)) {
+        Column(
+            Modifier.weight(1f).let { if (item.isSecret) it.clickable(onClick = onToggleReveal) else it },
+        ) {
             Text(item.key, style = MaterialTheme.typography.bodyMedium, color = Burrow.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (revealed) item.value else maskedValue(item.value),
+                if (!item.isSecret || revealed) item.value else maskedValue(item.value),
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 color = Burrow.Neutral600,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onToggleReveal, modifier = Modifier.size(32.dp)) {
-            Icon(
-                if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                contentDescription = if (revealed) "Hide value" else "Reveal value",
-                tint = Burrow.Neutral600,
-            )
+        if (item.isSecret) {
+            IconButton(onClick = onToggleReveal, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = if (revealed) "Hide value" else "Reveal value",
+                    tint = Burrow.Neutral600,
+                )
+            }
         }
         IconButton(onClick = onCopyValue, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Filled.ContentCopy, contentDescription = "Copy value", tint = Burrow.Neutral600)
@@ -463,7 +466,7 @@ private fun FileRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(dragHandleModifier.size(28.dp), contentAlignment = Alignment.Center) { DragHandle() }
-        RowIconBadge(Icons.Filled.InsertDriveFile, Burrow.Accent100, Burrow.Accent700, 32)
+        RowIconBadge(iconFor(item.icon), Burrow.Accent100, Burrow.Accent700, 32)
         Column(Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.bodyMedium, color = Burrow.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -489,7 +492,7 @@ private fun FabCluster(state: UiState, viewModel: BurrowViewModel, modifier: Mod
         AnimatedVisibility(visible = state.fabOpen) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 FabMiniButton("File") { viewModel.openAddForm(ListKind.FILES) }
-                FabMiniButton("Variable") { viewModel.openAddForm(ListKind.VARIABLES) }
+                FabMiniButton("Environment") { viewModel.openAddForm(ListKind.VARIABLES) }
                 FabMiniButton("Link") { viewModel.openAddForm(ListKind.LINKS) }
                 FabMiniButton("Folder") { viewModel.openAddForm(ListKind.FOLDERS) }
             }

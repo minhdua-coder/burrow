@@ -86,7 +86,7 @@ fun SearchScreen(state: UiState, viewModel: BurrowViewModel) {
             OutlinedTextField(
                 value = query,
                 onValueChange = viewModel::setSearchQuery,
-                placeholder = { Text("Search links and variables") },
+                placeholder = { Text("Search links, environments, and files") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -134,7 +134,10 @@ fun SearchScreen(state: UiState, viewModel: BurrowViewModel) {
                     ) {
                         when (r.type) {
                             ResultType.LINK -> Tag("LINK", Burrow.Accent100, Burrow.Accent800)
-                            ResultType.VARIABLE -> Tag("VAR", Burrow.Accent2_100, Burrow.Accent2_800)
+                            ResultType.VARIABLE -> {
+                                val label = if (r.variable!!.isSecret) "SECRET" else "ENV"
+                                Tag(label, Burrow.Accent2_100, Burrow.Accent2_800)
+                            }
                             ResultType.FILE -> Tag("FILE", Burrow.Accent100, Burrow.Accent800)
                         }
                         Column(
@@ -148,7 +151,10 @@ fun SearchScreen(state: UiState, viewModel: BurrowViewModel) {
                                             )
                                         }
                                     }
-                                    ResultType.VARIABLE -> viewModel.toggleReveal(r.variable!!.id)
+                                    ResultType.VARIABLE -> {
+                                        val v = r.variable!!
+                                        if (v.isSecret) viewModel.toggleReveal(v.id)
+                                    }
                                     ResultType.FILE -> {
                                         val file = r.file!!
                                         pendingDownloadFile = file
@@ -166,7 +172,7 @@ fun SearchScreen(state: UiState, viewModel: BurrowViewModel) {
                                 ResultType.LINK -> r.link!!.url
                                 ResultType.VARIABLE -> {
                                     val v = r.variable!!
-                                    if (state.revealed.contains(v.id)) v.value else maskedValue(v.value)
+                                    if (!v.isSecret || state.revealed.contains(v.id)) v.value else maskedValue(v.value)
                                 }
                                 ResultType.FILE -> {
                                     val f = r.file!!

@@ -3,6 +3,8 @@ package com.burrow.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,14 +58,14 @@ import kotlinx.coroutines.launch
 private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.FolderForm -> if (sheet.mode == FormMode.ADD) "New folder" else "Rename folder"
     is Sheet.LinkForm -> if (sheet.mode == FormMode.ADD) "New link" else "Edit link"
-    is Sheet.VariableForm -> if (sheet.mode == FormMode.ADD) "New variable" else "Edit variable"
+    is Sheet.VariableForm -> if (sheet.mode == FormMode.ADD) "New environment" else "Edit environment"
     is Sheet.FolderActions -> sheet.item.name
     is Sheet.LinkActions -> sheet.item.name
     is Sheet.VariableActions -> sheet.item.key
     Sheet.Settings -> "Settings"
     is Sheet.ChangePinForm -> "Change PIN"
     is Sheet.IdGenerator -> if (sheet.format == com.burrow.app.viewmodel.RandomFormat.KEY) "Random key" else "Random ID suffix"
-    is Sheet.EnvImportForm -> "Import variables from text"
+    is Sheet.EnvImportForm -> "Import environments from text"
     is Sheet.FileForm -> if (sheet.mode == FormMode.ADD) "New file" else "Rename file"
     is Sheet.FileActions -> sheet.item.name
     is Sheet.GithubTokenTool -> "GitHub App token"
@@ -91,7 +93,10 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
                 Text("Color", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
                 androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     FolderColors.forEach { c ->
                         val selected = sheet.color == c.key
                         Box(
@@ -120,6 +125,13 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 LabeledField("Key", sheet.key, viewModel::updateVariableFormKey, "e.g. SSH VPS")
                 androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
                 LabeledField("Value", sheet.value, viewModel::updateVariableFormValue, "value or secret", monospace = true, multiline = true)
+                androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+                Text("Type", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
+                androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FormatToggleChip("Variable", !sheet.isSecret) { viewModel.updateVariableFormIsSecret(false) }
+                    FormatToggleChip("Secret", sheet.isSecret) { viewModel.updateVariableFormIsSecret(true) }
+                }
                 IconPicker(sheet.icon, viewModel::updateVariableFormIcon)
                 FormActions(viewModel)
             }
@@ -209,7 +221,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                         if (text != null) viewModel.importEnvContent(text)
                     }
                 }
-                ActionButton("Export variables (.env)") { exportLauncher.launch("burrow.env") }
+                ActionButton("Export environments (.env)") { exportLauncher.launch("warren.env") }
                 ActionButton("Import from file (.env)") { importLauncher.launch("*/*") }
                 ActionButton("Import from pasted text") { viewModel.openEnvImportForm() }
                 ActionButton("GitHub App token") { viewModel.openGithubTokenTool() }
@@ -272,6 +284,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     )
                     Icon(Icons.Filled.AttachFile, contentDescription = "Choose file", tint = Burrow.Neutral600)
                 }
+                IconPicker(sheet.icon, viewModel::updateFileFormIcon)
                 FormActions(viewModel)
             }
             is Sheet.EnvImportForm -> {
@@ -331,7 +344,10 @@ private fun IconPicker(current: String, onSelect: (String) -> Unit) {
     androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
     Text("Icon", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
     androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         ICON_KEYS.forEach { key ->
             val selected = current == key
             Box(

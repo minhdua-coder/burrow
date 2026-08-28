@@ -39,6 +39,16 @@ object Burrow {
     val Accent2_700 = Color(0xFF56633F)
     val Accent2_800 = Color(0xFF3D472B)
     val Accent2_900 = Color(0xFF272E1B)
+
+    // Two extra earthy hues, same tonal pattern as Accent/Accent2, so new
+    // folder colors stay in-family instead of introducing a clashing hue.
+    val Ochre100 = Color(0xFFFAF1DC)
+    val Ochre600 = Color(0xFF9C7A32)
+    val Ochre700 = Color(0xFF7A5F27)
+
+    val Clay100 = Color(0xFFFBEAE7)
+    val Clay600 = Color(0xFF9C554B)
+    val Clay700 = Color(0xFF7A423A)
 }
 
 data class FolderColor(val key: String, val bg: Color, val fg: Color)
@@ -47,8 +57,12 @@ val FolderColors = listOf(
     FolderColor("sand", Burrow.Neutral200, Burrow.Neutral700),
     FolderColor("terracotta", Burrow.Accent100, Burrow.Accent700),
     FolderColor("sage", Burrow.Accent2_100, Burrow.Accent2_700),
+    FolderColor("ochre", Burrow.Ochre100, Burrow.Ochre700),
+    FolderColor("clay", Burrow.Clay100, Burrow.Clay700),
     FolderColor("terracotta-deep", Burrow.Accent600, Color.White),
     FolderColor("sage-deep", Burrow.Accent2_600, Color.White),
+    FolderColor("ochre-deep", Burrow.Ochre600, Color.White),
+    FolderColor("clay-deep", Burrow.Clay600, Color.White),
     FolderColor("ink", Burrow.Neutral700, Color.White),
 )
 
