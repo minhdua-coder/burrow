@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -61,7 +62,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.VariableActions -> sheet.item.key
     Sheet.Settings -> "Settings"
     is Sheet.ChangePinForm -> "Change PIN"
-    is Sheet.IdGenerator -> "Random ID suffix"
+    is Sheet.IdGenerator -> if (sheet.format == com.burrow.app.viewmodel.RandomFormat.KEY) "Random key" else "Random ID suffix"
     is Sheet.EnvImportForm -> "Import variables from text"
     is Sheet.FileForm -> if (sheet.mode == FormMode.ADD) "New file" else "Rename file"
     is Sheet.FileActions -> sheet.item.name
@@ -386,12 +387,21 @@ fun shareText(context: android.content.Context, text: String) {
 
 @Composable
 private fun IdGeneratorContent(sheet: Sheet.IdGenerator, viewModel: BurrowViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = LocalClipboardManager.current
+    val isKey = sheet.format == com.burrow.app.viewmodel.RandomFormat.KEY
 
-    Text("Length", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FormatToggleChip("ID suffix", !isKey) { viewModel.setIdGeneratorFormat(com.burrow.app.viewmodel.RandomFormat.SUFFIX) }
+        FormatToggleChip("Random key", isKey) { viewModel.setIdGeneratorFormat(com.burrow.app.viewmodel.RandomFormat.KEY) }
+    }
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
+    Text(if (isKey) "Bytes" else "Length", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
     androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ID_SUFFIX_LENGTHS.forEach { len ->
+        val lengths = if (isKey) com.burrow.app.data.KEY_BYTE_LENGTHS else ID_SUFFIX_LENGTHS
+        lengths.forEach { len ->
             val selected = sheet.length == len
             Text(
                 text = len.toString(),
@@ -431,13 +441,35 @@ private fun IdGeneratorContent(sheet: Sheet.IdGenerator, viewModel: BurrowViewMo
         ) {
             Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = Burrow.Neutral600)
         }
+        if (isKey) {
+            IconButton(onClick = { shareText(context, sheet.value) }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.Share, contentDescription = "Share", tint = Burrow.Neutral600)
+            }
+        }
     }
 
     androidx.compose.foundation.layout.Spacer(Modifier.height(10.dp))
     Text(
-        "Append this to an object id in your URLs/APIs so it can't be guessed.",
+        if (isKey) {
+            "Also saved as a new variable in this folder, named with the time it was generated."
+        } else {
+            "Append this to an object id in your URLs/APIs so it can't be guessed."
+        },
         style = MaterialTheme.typography.bodySmall,
         color = Burrow.Neutral600,
+    )
+}
+
+@Composable
+private fun FormatToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (selected) Burrow.Bg else Burrow.Text,
+        modifier = Modifier
+            .background(if (selected) Burrow.Accent else Burrow.Neutral100, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
     )
 }
 

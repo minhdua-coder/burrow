@@ -11,6 +11,7 @@ enum class Screen { BROWSE, SEARCH }
 enum class FormMode { ADD, EDIT }
 enum class ListKind { FOLDERS, LINKS, VARIABLES, FILES }
 enum class DeleteKind { FOLDER, LINK, VARIABLE, FILE }
+enum class RandomFormat { SUFFIX, KEY }
 
 sealed interface Sheet {
     data class FolderForm(val mode: FormMode, val editId: String? = null, val name: String = "", val color: String = "sand") : Sheet
@@ -31,7 +32,7 @@ sealed interface Sheet {
     data class FileActions(val item: FileItem) : Sheet
     data object Settings : Sheet
     data class ChangePinForm(val current: String = "", val next: String = "", val confirm: String = "") : Sheet
-    data class IdGenerator(val length: Int = 12, val value: String = "") : Sheet
+    data class IdGenerator(val format: RandomFormat = RandomFormat.SUFFIX, val length: Int = 12, val value: String = "") : Sheet
     data class EnvImportForm(val text: String = "") : Sheet
     data class GithubTokenTool(
         val folderLabel: String = "Warren",

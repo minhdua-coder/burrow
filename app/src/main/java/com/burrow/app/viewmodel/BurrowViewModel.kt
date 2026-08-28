@@ -15,6 +15,7 @@ import com.burrow.app.data.buildEnvFile
 import com.burrow.app.data.detectGithubAppConfig
 import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
+import com.burrow.app.data.generateRandomBase64Key
 import com.burrow.app.data.generateRandomSlug
 import com.burrow.app.data.parseEnvFile
 import com.burrow.app.data.pathNames
@@ -184,17 +185,43 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun openChangePin() = _state.update { it.copy(sheet = Sheet.ChangePinForm()) }
     fun closeSheet() = _state.update { it.copy(sheet = null) }
 
+    private fun generateForFormat(format: RandomFormat, length: Int): String =
+        if (format == RandomFormat.SUFFIX) generateRandomSlug(length) else generateRandomBase64Key(length)
+
     fun openIdGenerator() {
         val length = 12
-        _state.update { it.copy(sheet = Sheet.IdGenerator(length, generateRandomSlug(length))) }
+        _state.update { it.copy(sheet = Sheet.IdGenerator(RandomFormat.SUFFIX, length, generateRandomSlug(length))) }
     }
-    fun regenerateId() = _state.update {
-        val s = it.sheet as? Sheet.IdGenerator ?: return@update it
-        it.copy(sheet = s.copy(value = generateRandomSlug(s.length)))
+    fun setIdGeneratorFormat(format: RandomFormat) {
+        val length = if (format == RandomFormat.SUFFIX) 12 else 32
+        val value = generateForFormat(format, length)
+        _state.update { it.copy(sheet = Sheet.IdGenerator(format, length, value)) }
+        if (format == RandomFormat.KEY) saveGeneratedKeyAsVariable(value)
     }
-    fun setIdGeneratorLength(length: Int) = _state.update {
-        val s = it.sheet as? Sheet.IdGenerator ?: return@update it
-        it.copy(sheet = s.copy(length = length, value = generateRandomSlug(length)))
+    fun regenerateId() {
+        val s = _state.value.sheet as? Sheet.IdGenerator ?: return
+        val value = generateForFormat(s.format, s.length)
+        _state.update {
+            val cur = it.sheet as? Sheet.IdGenerator ?: return@update it
+            it.copy(sheet = cur.copy(value = value))
+        }
+        if (s.format == RandomFormat.KEY) saveGeneratedKeyAsVariable(value)
+    }
+    fun setIdGeneratorLength(length: Int) {
+        val s = _state.value.sheet as? Sheet.IdGenerator ?: return
+        val value = generateForFormat(s.format, length)
+        _state.update {
+            val cur = it.sheet as? Sheet.IdGenerator ?: return@update it
+            it.copy(sheet = cur.copy(length = length, value = value))
+        }
+        if (s.format == RandomFormat.KEY) saveGeneratedKeyAsVariable(value)
+    }
+
+    private fun saveGeneratedKeyAsVariable(value: String) {
+        val name = "Key " + java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        mutateNode { node -> node.copy(variables = node.variables + Variable(id = genId("v"), key = name, value = value, icon = "key")) }
+        showToast("Saved as variable \"$name\"")
     }
 
     fun openEnvImportForm() = _state.update { it.copy(sheet = Sheet.EnvImportForm()) }

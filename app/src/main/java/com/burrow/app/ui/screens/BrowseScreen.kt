@@ -139,7 +139,7 @@ private fun BrowseTopBar(state: UiState, viewModel: BurrowViewModel) {
         }
 
         IconButton(onClick = { viewModel.openIdGenerator() }, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Filled.Fingerprint, contentDescription = "Generate random ID suffix", tint = Burrow.Text)
+            Icon(Icons.Filled.Fingerprint, contentDescription = "Random ID suffix / key generator", tint = Burrow.Text)
         }
         IconButton(onClick = { viewModel.openSettings() }, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Burrow.Text)
