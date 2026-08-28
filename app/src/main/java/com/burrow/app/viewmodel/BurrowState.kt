@@ -33,6 +33,16 @@ sealed interface Sheet {
     data class ChangePinForm(val current: String = "", val next: String = "", val confirm: String = "") : Sheet
     data class IdGenerator(val length: Int = 12, val value: String = "") : Sheet
     data class EnvImportForm(val text: String = "") : Sheet
+    data class GithubTokenTool(
+        val folderLabel: String = "Burrow",
+        val appId: String? = null,
+        val installationId: String? = null,
+        val privateKeyFile: FileItem? = null,
+        val isGenerating: Boolean = false,
+        val token: String? = null,
+        val tokenExpiresAt: String? = null,
+        val error: String? = null,
+    ) : Sheet
 }
 
 data class ConfirmDeleteState(val kind: DeleteKind, val id: String, val name: String)

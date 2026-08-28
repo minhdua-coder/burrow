@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
@@ -62,6 +64,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.EnvImportForm -> "Import variables from text"
     is Sheet.FileForm -> if (sheet.mode == FormMode.ADD) "New file" else "Rename file"
     is Sheet.FileActions -> sheet.item.name
+    is Sheet.GithubTokenTool -> "GitHub App token"
 }
 
 @Composable
@@ -206,6 +209,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 ActionButton("Export variables (.env)") { exportLauncher.launch("burrow.env") }
                 ActionButton("Import from file (.env)") { importLauncher.launch("*/*") }
                 ActionButton("Import from pasted text") { viewModel.openEnvImportForm() }
+                ActionButton("GitHub App token") { viewModel.openGithubTokenTool() }
                 ActionButton("Change PIN") { viewModel.openChangePin() }
             }
             is Sheet.ChangePinForm -> {
@@ -264,6 +268,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 )
                 FormActions(viewModel)
             }
+            is Sheet.GithubTokenTool -> GithubTokenToolContent(sheet, viewModel)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }
@@ -418,4 +423,108 @@ private fun IdGeneratorContent(sheet: Sheet.IdGenerator, viewModel: BurrowViewMo
         style = MaterialTheme.typography.bodySmall,
         color = Burrow.Neutral600,
     )
+}
+
+@Composable
+private fun GithubTokenToolContent(sheet: Sheet.GithubTokenTool, viewModel: BurrowViewModel) {
+    val clipboard = LocalClipboardManager.current
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Reading from: ${sheet.folderLabel}",
+            style = MaterialTheme.typography.bodySmall,
+            color = Burrow.Neutral700,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = { viewModel.rescanGithubTokenFolder() }, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.Refresh, contentDescription = "Rescan folder", tint = Burrow.Neutral600)
+        }
+    }
+    androidx.compose.foundation.layout.Spacer(Modifier.height(10.dp))
+    Text(
+        "Put an APP_ID variable, an INSTALLATION_ID variable, and a .pem file in this folder - open the tool from there.",
+        style = MaterialTheme.typography.bodySmall,
+        color = Burrow.Neutral600,
+    )
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+    DetectionStatusRow("APP_ID variable", sheet.appId)
+    androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+    DetectionStatusRow("INSTALLATION_ID variable", sheet.installationId)
+    androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+    DetectionStatusRow(".pem private key file", sheet.privateKeyFile?.originalFileName)
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(18.dp))
+    Button(
+        onClick = { viewModel.generateGithubToken() },
+        enabled = !sheet.isGenerating,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(containerColor = Burrow.Accent, contentColor = Burrow.Bg),
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(if (sheet.isGenerating) "Generating…" else "Generate token") }
+
+    val error = sheet.error
+    if (error != null) {
+        androidx.compose.foundation.layout.Spacer(Modifier.height(10.dp))
+        Text(error, style = MaterialTheme.typography.bodySmall, color = Burrow.Accent700)
+    }
+
+    val token = sheet.token
+    if (token != null) {
+        androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+        Text("Installation token", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral700)
+        androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Burrow.Surface, RoundedCornerShape(20.dp))
+                .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                token,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = Burrow.Text,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString(token))
+                    viewModel.showToast("Token copied")
+                },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy token", tint = Burrow.Neutral600)
+            }
+        }
+        val expiresAt = sheet.tokenExpiresAt
+        if (!expiresAt.isNullOrBlank()) {
+            androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+            Text("Expires: $expiresAt", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral600)
+        }
+    }
+}
+
+@Composable
+private fun DetectionStatusRow(label: String, detectedValue: String?) {
+    val found = !detectedValue.isNullOrBlank()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(
+            if (found) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+            contentDescription = if (found) "Found" else "Missing",
+            tint = if (found) Burrow.Accent2_700 else Burrow.Neutral400,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            if (found) "$label: $detectedValue" else "$label: not found",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (found) Burrow.Text else Burrow.Neutral600,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
 }

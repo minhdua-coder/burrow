@@ -28,6 +28,12 @@ object FileStorage {
         storagePath(context, id).delete()
     }
 
+    fun exists(context: Context, id: String): Boolean = storagePath(context, id).exists()
+
+    fun readText(context: Context, id: String): String? = runCatching {
+        storagePath(context, id).readText()
+    }.getOrNull()
+
     fun queryDisplayName(context: Context, uri: Uri): String? = runCatching {
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)

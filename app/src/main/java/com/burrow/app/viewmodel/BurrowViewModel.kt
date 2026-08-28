@@ -8,13 +8,16 @@ import com.burrow.app.data.BurrowRepository
 import com.burrow.app.data.FileItem
 import com.burrow.app.data.FileStorage
 import com.burrow.app.data.FolderNode
+import com.burrow.app.data.GithubAppAuth
 import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
 import com.burrow.app.data.buildEnvFile
+import com.burrow.app.data.detectGithubAppConfig
 import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
 import com.burrow.app.data.generateRandomSlug
 import com.burrow.app.data.parseEnvFile
+import com.burrow.app.data.pathNames
 import com.burrow.app.data.updateAtPath
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -198,6 +201,62 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun updateEnvImportText(v: String) = _state.update {
         val s = it.sheet as? Sheet.EnvImportForm ?: return@update it
         it.copy(sheet = s.copy(text = v))
+    }
+
+    // ---- GitHub App installation token (auto-detected from the current folder's
+    // APP_ID / INSTALLATION_ID variables and a .pem file) ----
+    fun openGithubTokenTool() {
+        val node = currentNode()
+        val detected = detectGithubAppConfig(node)
+        val label = if (_state.value.path.isEmpty()) "Burrow" else pathNames(_state.value.tree, _state.value.path).joinToString(" / ")
+        _state.update {
+            it.copy(
+                sheet = Sheet.GithubTokenTool(
+                    folderLabel = label,
+                    appId = detected.appId,
+                    installationId = detected.installationId,
+                    privateKeyFile = detected.privateKeyFile,
+                ),
+            )
+        }
+    }
+    fun rescanGithubTokenFolder() = openGithubTokenTool()
+    fun generateGithubToken() {
+        val s = _state.value.sheet as? Sheet.GithubTokenTool ?: return
+        val appId = s.appId
+        val installationId = s.installationId
+        val keyFile = s.privateKeyFile
+        if (appId.isNullOrBlank() || installationId.isNullOrBlank()) {
+            showToast("APP_ID / INSTALLATION_ID variable not found in this folder")
+            return
+        }
+        if (keyFile == null) {
+            showToast("No .pem file found in this folder")
+            return
+        }
+
+        _state.update {
+            val cur = it.sheet as? Sheet.GithubTokenTool ?: return@update it
+            it.copy(sheet = cur.copy(isGenerating = true, error = null, token = null))
+        }
+        viewModelScope.launch {
+            val pem = FileStorage.readText(getApplication(), keyFile.id)
+            if (pem == null) {
+                _state.update {
+                    val cur = it.sheet as? Sheet.GithubTokenTool ?: return@update it
+                    it.copy(sheet = cur.copy(isGenerating = false, error = "Could not read the private key file"))
+                }
+                return@launch
+            }
+            val result = GithubAppAuth.fetchInstallationToken(appId, installationId, pem)
+            _state.update {
+                val cur = it.sheet as? Sheet.GithubTokenTool ?: return@update it
+                result.fold(
+                    onSuccess = { r -> it.copy(sheet = cur.copy(isGenerating = false, token = r.token, tokenExpiresAt = r.expiresAt)) },
+                    onFailure = { e -> it.copy(sheet = cur.copy(isGenerating = false, error = e.message ?: "Failed to generate token")) },
+                )
+            }
+        }
     }
 
     // ---- sheet field updates ----

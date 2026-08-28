@@ -135,3 +135,19 @@ fun formatFileSize(bytes: Long): String = when {
 }
 
 fun maskedValue(value: String): String = "•".repeat(minOf(value.ifEmpty { "        " }.length, 24))
+
+data class GithubAppConfigStatus(
+    val appId: String?,
+    val installationId: String?,
+    val privateKeyFile: FileItem?,
+)
+
+private fun normalizeKey(s: String): String = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+
+/** Looks in one folder's own variables/files for an APP_ID variable, an INSTALLATION_ID variable, and a .pem file. */
+fun detectGithubAppConfig(node: FolderNode): GithubAppConfigStatus {
+    val appId = node.variables.find { normalizeKey(it.key) == "appid" }?.value
+    val installationId = node.variables.find { normalizeKey(it.key) == "installationid" }?.value
+    val pemFile = node.files.find { it.originalFileName.endsWith(".pem", ignoreCase = true) }
+    return GithubAppConfigStatus(appId, installationId, pemFile)
+}
