@@ -31,8 +31,15 @@ private val LAST_NOTIFIED_TAG = stringPreferencesKey("last_notified_tag")
 
 data class ReleaseInfo(val tagName: String, val htmlUrl: String, val apkUrl: String?)
 
+sealed interface UpdateCheckResult {
+    data class UpdateAvailable(val release: ReleaseInfo) : UpdateCheckResult
+    data object UpToDate : UpdateCheckResult
+    data object Failed : UpdateCheckResult
+}
+
 object UpdateChecker {
 
+    /** Passive check on app launch: silent, only ever surfaces a system notification. */
     suspend fun checkForUpdate(context: Context) {
         val release = fetchLatestRelease() ?: return
         val remoteVersion = release.tagName.removePrefix("v")
@@ -43,6 +50,17 @@ object UpdateChecker {
 
         showUpdateNotification(context, release)
         context.updateDataStore.edit { it[LAST_NOTIFIED_TAG] = release.tagName }
+    }
+
+    /** User-initiated check: reports back so the caller can show its own result immediately. */
+    suspend fun checkNow(): UpdateCheckResult {
+        val release = fetchLatestRelease() ?: return UpdateCheckResult.Failed
+        val remoteVersion = release.tagName.removePrefix("v")
+        return if (isNewer(remoteVersion, BuildConfig.VERSION_NAME)) {
+            UpdateCheckResult.UpdateAvailable(release)
+        } else {
+            UpdateCheckResult.UpToDate
+        }
     }
 
     private suspend fun fetchLatestRelease(): ReleaseInfo? = withContext(Dispatchers.IO) {

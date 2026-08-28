@@ -50,6 +50,7 @@ import com.burrow.app.viewmodel.BurrowViewModel
 import com.burrow.app.viewmodel.FormMode
 import com.burrow.app.viewmodel.Sheet
 import com.burrow.app.viewmodel.UiState
+import kotlinx.coroutines.launch
 
 private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.FolderForm -> if (sheet.mode == FormMode.ADD) "New folder" else "Rename folder"
@@ -184,6 +185,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
             }
             Sheet.Settings -> {
                 val context = androidx.compose.ui.platform.LocalContext.current
+                val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
                 val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                     androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain"),
                 ) { uri ->
@@ -210,6 +212,20 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 ActionButton("Import from file (.env)") { importLauncher.launch("*/*") }
                 ActionButton("Import from pasted text") { viewModel.openEnvImportForm() }
                 ActionButton("GitHub App token") { viewModel.openGithubTokenTool() }
+                ActionButton("Check for updates") {
+                    coroutineScope.launch {
+                        when (val result = com.burrow.app.update.UpdateChecker.checkNow()) {
+                            is com.burrow.app.update.UpdateCheckResult.UpdateAvailable -> {
+                                val apkUrl = result.release.apkUrl ?: result.release.htmlUrl
+                                com.burrow.app.update.UpdateInstaller.downloadAndInstall(context, apkUrl, result.release.tagName)
+                            }
+                            com.burrow.app.update.UpdateCheckResult.UpToDate ->
+                                viewModel.showToast("You're on the latest version")
+                            com.burrow.app.update.UpdateCheckResult.Failed ->
+                                viewModel.showToast("Could not check for updates")
+                        }
+                    }
+                }
                 ActionButton("Change PIN") { viewModel.openChangePin() }
             }
             is Sheet.ChangePinForm -> {
