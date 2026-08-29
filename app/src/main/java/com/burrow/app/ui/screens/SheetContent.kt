@@ -5,11 +5,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -44,12 +47,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import com.burrow.app.data.FolderNode
 import com.burrow.app.data.ID_SUFFIX_LENGTHS
+import com.burrow.app.data.findNode
+import com.burrow.app.data.pathNames
 import com.burrow.app.ui.ICON_KEYS
 import com.burrow.app.ui.iconFor
 import com.burrow.app.ui.theme.Burrow
 import com.burrow.app.ui.theme.FolderColors
 import com.burrow.app.viewmodel.BurrowViewModel
+import com.burrow.app.viewmodel.DeleteKind
 import com.burrow.app.viewmodel.FormMode
 import com.burrow.app.viewmodel.Sheet
 import com.burrow.app.viewmodel.UiState
@@ -69,6 +76,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.FileForm -> if (sheet.mode == FormMode.ADD) "New file" else "Rename file"
     is Sheet.FileActions -> sheet.item.name
     is Sheet.GithubTokenTool -> "GitHub App token"
+    is Sheet.MoveItemPicker -> "Move \"${sheet.itemName}\""
 }
 
 @Composable
@@ -137,6 +145,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
             }
             is Sheet.FolderActions -> {
                 ActionButton("Rename") { viewModel.openEditFolder(sheet.item) }
+                ActionButton("Move to folder") { viewModel.openMoveFolder(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteFolder(sheet.item) }
             }
             is Sheet.LinkActions -> {
@@ -158,6 +167,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     viewModel.closeSheet()
                 }
                 ActionButton("Edit") { viewModel.openEditLink(sheet.item) }
+                ActionButton("Move to folder") { viewModel.openMoveLink(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteLink(sheet.item) }
             }
             is Sheet.VariableActions -> {
@@ -178,6 +188,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     viewModel.closeSheet()
                 }
                 ActionButton("Edit") { viewModel.openEditVariable(sheet.item) }
+                ActionButton("Move to folder") { viewModel.openMoveVariable(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteVariable(sheet.item) }
             }
             is Sheet.FileActions -> {
@@ -194,6 +205,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     downloadLauncher.launch(sheet.item.originalFileName.ifBlank { sheet.item.name })
                 }
                 ActionButton("Rename") { viewModel.openEditFile(sheet.item) }
+                ActionButton("Move to folder") { viewModel.openMoveFile(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteFile(sheet.item) }
             }
             Sheet.Settings -> {
@@ -299,6 +311,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 FormActions(viewModel)
             }
             is Sheet.GithubTokenTool -> GithubTokenToolContent(sheet, viewModel)
+            is Sheet.MoveItemPicker -> MoveItemPickerContent(sheet, viewModel, state.tree)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }
@@ -571,6 +584,78 @@ private fun GithubTokenToolContent(sheet: Sheet.GithubTokenTool, viewModel: Burr
             Text("Expires: $expiresAt", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral600)
         }
     }
+}
+
+@Composable
+private fun MoveItemPickerContent(sheet: Sheet.MoveItemPicker, viewModel: BurrowViewModel, tree: FolderNode) {
+    val node = findNode(tree, sheet.browsePath)
+    val crumb = if (sheet.browsePath.isEmpty()) "Warren" else pathNames(tree, sheet.browsePath).joinToString(" / ")
+    val isSourceHere = sheet.browsePath == sheet.sourcePath
+
+    Text("Moving \"${sheet.itemName}\"", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral600)
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (sheet.browsePath.isNotEmpty()) {
+            IconButton(onClick = { viewModel.movePickerGoBack() }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Burrow.Neutral600)
+            }
+        }
+        Text(
+            crumb,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Burrow.Text,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+    androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 240.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        if (node.folders.isEmpty()) {
+            Text(
+                "No subfolders here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Burrow.Neutral600,
+                modifier = Modifier.padding(vertical = 10.dp),
+            )
+        }
+        node.folders.forEach { f ->
+            val disabled = sheet.kind == DeleteKind.FOLDER && f.id == sheet.itemId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !disabled) { viewModel.movePickerOpenFolder(f.id) }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    f.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (disabled) Burrow.Neutral400 else Burrow.Text,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(">", style = MaterialTheme.typography.bodyMedium, color = Burrow.Neutral400)
+            }
+        }
+    }
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+    Button(
+        onClick = { viewModel.confirmMoveHere() },
+        enabled = !isSourceHere,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(containerColor = Burrow.Accent, contentColor = Burrow.Bg),
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(if (isSourceHere) "Already here" else "Move here") }
 }
 
 @Composable

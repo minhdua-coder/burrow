@@ -79,6 +79,33 @@ fun updateAtPath(node: FolderNode, path: List<String>, updater: (FolderNode) -> 
     return node.copy(folders = node.folders.map { if (it.id == id) updateAtPath(it, path.drop(1), updater) else it })
 }
 
+/** Moves a folder to a different parent. Returns the tree unchanged if destPath is the folder itself or inside it. */
+fun moveFolder(tree: FolderNode, sourcePath: List<String>, folderId: String, destPath: List<String>): FolderNode {
+    val forbiddenPrefix = sourcePath + folderId
+    if (destPath.size >= forbiddenPrefix.size && destPath.subList(0, forbiddenPrefix.size) == forbiddenPrefix) return tree
+    val item = findNode(tree, sourcePath).folders.find { it.id == folderId } ?: return tree
+    val removed = updateAtPath(tree, sourcePath) { it.copy(folders = it.folders.filter { f -> f.id != folderId }) }
+    return updateAtPath(removed, destPath) { it.copy(folders = it.folders + item) }
+}
+
+fun moveLink(tree: FolderNode, sourcePath: List<String>, linkId: String, destPath: List<String>): FolderNode {
+    val item = findNode(tree, sourcePath).links.find { it.id == linkId } ?: return tree
+    val removed = updateAtPath(tree, sourcePath) { it.copy(links = it.links.filter { l -> l.id != linkId }) }
+    return updateAtPath(removed, destPath) { it.copy(links = it.links + item) }
+}
+
+fun moveVariable(tree: FolderNode, sourcePath: List<String>, variableId: String, destPath: List<String>): FolderNode {
+    val item = findNode(tree, sourcePath).variables.find { it.id == variableId } ?: return tree
+    val removed = updateAtPath(tree, sourcePath) { it.copy(variables = it.variables.filter { v -> v.id != variableId }) }
+    return updateAtPath(removed, destPath) { it.copy(variables = it.variables + item) }
+}
+
+fun moveFile(tree: FolderNode, sourcePath: List<String>, fileId: String, destPath: List<String>): FolderNode {
+    val item = findNode(tree, sourcePath).files.find { it.id == fileId } ?: return tree
+    val removed = updateAtPath(tree, sourcePath) { it.copy(files = it.files.filter { f -> f.id != fileId }) }
+    return updateAtPath(removed, destPath) { it.copy(files = it.files + item) }
+}
+
 fun pathNames(tree: FolderNode, path: List<String>): List<String> {
     val names = mutableListOf<String>()
     var node = tree

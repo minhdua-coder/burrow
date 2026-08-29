@@ -17,6 +17,10 @@ import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
 import com.burrow.app.data.generateRandomBase64Key
 import com.burrow.app.data.generateRandomSlug
+import com.burrow.app.data.moveFile
+import com.burrow.app.data.moveFolder
+import com.burrow.app.data.moveLink
+import com.burrow.app.data.moveVariable
 import com.burrow.app.data.parseEnvFile
 import com.burrow.app.data.pathNames
 import com.burrow.app.data.updateAtPath
@@ -184,6 +188,47 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
     fun openSettings() = _state.update { it.copy(sheet = Sheet.Settings) }
     fun openChangePin() = _state.update { it.copy(sheet = Sheet.ChangePinForm()) }
     fun closeSheet() = _state.update { it.copy(sheet = null) }
+
+    fun openMoveFolder(item: FolderNode) = _state.update {
+        it.copy(sheet = Sheet.MoveItemPicker(DeleteKind.FOLDER, item.id, item.name, it.path))
+    }
+    fun openMoveLink(item: LinkItem) = _state.update {
+        it.copy(sheet = Sheet.MoveItemPicker(DeleteKind.LINK, item.id, item.name, it.path))
+    }
+    fun openMoveVariable(item: Variable) = _state.update {
+        it.copy(sheet = Sheet.MoveItemPicker(DeleteKind.VARIABLE, item.id, item.key, it.path))
+    }
+    fun openMoveFile(item: FileItem) = _state.update {
+        it.copy(sheet = Sheet.MoveItemPicker(DeleteKind.FILE, item.id, item.name, it.path))
+    }
+    fun movePickerOpenFolder(id: String) = _state.update {
+        val s = it.sheet as? Sheet.MoveItemPicker ?: return@update it
+        it.copy(sheet = s.copy(browsePath = s.browsePath + id))
+    }
+    fun movePickerGoBack() = _state.update {
+        val s = it.sheet as? Sheet.MoveItemPicker ?: return@update it
+        it.copy(sheet = s.copy(browsePath = s.browsePath.dropLast(1)))
+    }
+    fun confirmMoveHere() {
+        val s = _state.value.sheet as? Sheet.MoveItemPicker ?: return
+        if (s.browsePath == s.sourcePath) {
+            showToast("Already in this folder")
+            return
+        }
+        val newTree = when (s.kind) {
+            DeleteKind.FOLDER -> moveFolder(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+            DeleteKind.LINK -> moveLink(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+            DeleteKind.VARIABLE -> moveVariable(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+            DeleteKind.FILE -> moveFile(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+        }
+        if (newTree == _state.value.tree) {
+            showToast("Can't move a folder into itself")
+            return
+        }
+        _state.update { it.copy(tree = newTree, sheet = null) }
+        viewModelScope.launch { repository.saveTree(newTree) }
+        showToast("Moved \"${s.itemName}\"")
+    }
 
     private fun generateForFormat(format: RandomFormat, length: Int): String =
         if (format == RandomFormat.SUFFIX) generateRandomSlug(length) else generateRandomBase64Key(length)

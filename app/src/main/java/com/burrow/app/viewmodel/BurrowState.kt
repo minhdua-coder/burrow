@@ -52,6 +52,13 @@ sealed interface Sheet {
         val tokenExpiresAt: String? = null,
         val error: String? = null,
     ) : Sheet
+    data class MoveItemPicker(
+        val kind: DeleteKind,
+        val itemId: String,
+        val itemName: String,
+        val sourcePath: List<String>,
+        val browsePath: List<String> = emptyList(),
+    ) : Sheet
 }
 
 data class ConfirmDeleteState(val kind: DeleteKind, val id: String, val name: String)
