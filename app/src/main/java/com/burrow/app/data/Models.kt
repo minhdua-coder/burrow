@@ -106,6 +106,42 @@ fun moveFile(tree: FolderNode, sourcePath: List<String>, fileId: String, destPat
     return updateAtPath(removed, destPath) { it.copy(files = it.files + item) }
 }
 
+/** Deep-copies a folder and everything nested inside it, minting fresh ids throughout. Old->new file ids are recorded in [fileIdMap] so callers can copy the underlying file bytes. */
+private fun cloneFolderTree(node: FolderNode, fileIdMap: MutableMap<String, String>): FolderNode = node.copy(
+    id = genId("f"),
+    folders = node.folders.map { cloneFolderTree(it, fileIdMap) },
+    links = node.links.map { it.copy(id = genId("l")) },
+    variables = node.variables.map { it.copy(id = genId("v")) },
+    files = node.files.map { f -> val newId = genId("file"); fileIdMap[f.id] = newId; f.copy(id = newId) },
+)
+
+/** Clones a folder (recursively, with fresh ids) into a different folder. Returns the new tree plus a map of old->new file ids for copying file bytes. */
+fun cloneFolder(tree: FolderNode, sourcePath: List<String>, folderId: String, destPath: List<String>): Pair<FolderNode, Map<String, String>> {
+    val item = findNode(tree, sourcePath).folders.find { it.id == folderId } ?: return tree to emptyMap()
+    val fileIdMap = mutableMapOf<String, String>()
+    val cloned = cloneFolderTree(item, fileIdMap)
+    val newTree = updateAtPath(tree, destPath) { it.copy(folders = it.folders + cloned) }
+    return newTree to fileIdMap
+}
+
+fun cloneLink(tree: FolderNode, sourcePath: List<String>, linkId: String, destPath: List<String>): FolderNode {
+    val item = findNode(tree, sourcePath).links.find { it.id == linkId } ?: return tree
+    return updateAtPath(tree, destPath) { it.copy(links = it.links + item.copy(id = genId("l"))) }
+}
+
+fun cloneVariable(tree: FolderNode, sourcePath: List<String>, variableId: String, destPath: List<String>): FolderNode {
+    val item = findNode(tree, sourcePath).variables.find { it.id == variableId } ?: return tree
+    return updateAtPath(tree, destPath) { it.copy(variables = it.variables + item.copy(id = genId("v"))) }
+}
+
+/** Clones a file into a different folder. Returns the new tree plus the new file's id so callers can copy the underlying file bytes. */
+fun cloneFile(tree: FolderNode, sourcePath: List<String>, fileId: String, destPath: List<String>): Pair<FolderNode, String>? {
+    val item = findNode(tree, sourcePath).files.find { it.id == fileId } ?: return null
+    val newId = genId("file")
+    val newTree = updateAtPath(tree, destPath) { it.copy(files = it.files + item.copy(id = newId)) }
+    return newTree to newId
+}
+
 fun pathNames(tree: FolderNode, path: List<String>): List<String> {
     val names = mutableListOf<String>()
     var node = tree

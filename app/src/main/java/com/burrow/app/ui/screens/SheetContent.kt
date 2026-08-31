@@ -77,6 +77,7 @@ private fun sheetTitle(sheet: Sheet): String = when (sheet) {
     is Sheet.FileActions -> sheet.item.name
     is Sheet.GithubTokenTool -> "GitHub App token"
     is Sheet.MoveItemPicker -> "Move \"${sheet.itemName}\""
+    is Sheet.CloneItemPicker -> "Clone \"${sheet.itemName}\""
 }
 
 @Composable
@@ -146,6 +147,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
             is Sheet.FolderActions -> {
                 ActionButton("Rename") { viewModel.openEditFolder(sheet.item) }
                 ActionButton("Move to folder") { viewModel.openMoveFolder(sheet.item) }
+                ActionButton("Clone to folder") { viewModel.openCloneFolder(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteFolder(sheet.item) }
             }
             is Sheet.LinkActions -> {
@@ -168,6 +170,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 }
                 ActionButton("Edit") { viewModel.openEditLink(sheet.item) }
                 ActionButton("Move to folder") { viewModel.openMoveLink(sheet.item) }
+                ActionButton("Clone to folder") { viewModel.openCloneLink(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteLink(sheet.item) }
             }
             is Sheet.VariableActions -> {
@@ -189,6 +192,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 }
                 ActionButton("Edit") { viewModel.openEditVariable(sheet.item) }
                 ActionButton("Move to folder") { viewModel.openMoveVariable(sheet.item) }
+                ActionButton("Clone to folder") { viewModel.openCloneVariable(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteVariable(sheet.item) }
             }
             is Sheet.FileActions -> {
@@ -206,6 +210,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                 }
                 ActionButton("Rename") { viewModel.openEditFile(sheet.item) }
                 ActionButton("Move to folder") { viewModel.openMoveFile(sheet.item) }
+                ActionButton("Clone to folder") { viewModel.openCloneFile(sheet.item) }
                 ActionButton("Delete", danger = true) { viewModel.requestDeleteFile(sheet.item) }
             }
             Sheet.Settings -> {
@@ -312,6 +317,7 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
             }
             is Sheet.GithubTokenTool -> GithubTokenToolContent(sheet, viewModel)
             is Sheet.MoveItemPicker -> MoveItemPickerContent(sheet, viewModel, state.tree)
+            is Sheet.CloneItemPicker -> CloneItemPickerContent(sheet, viewModel, state.tree)
         }
         androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }
@@ -656,6 +662,75 @@ private fun MoveItemPickerContent(sheet: Sheet.MoveItemPicker, viewModel: Burrow
         colors = ButtonDefaults.buttonColors(containerColor = Burrow.Accent, contentColor = Burrow.Bg),
         modifier = Modifier.fillMaxWidth(),
     ) { Text(if (isSourceHere) "Already here" else "Move here") }
+}
+
+@Composable
+private fun CloneItemPickerContent(sheet: Sheet.CloneItemPicker, viewModel: BurrowViewModel, tree: FolderNode) {
+    val node = findNode(tree, sheet.browsePath)
+    val crumb = if (sheet.browsePath.isEmpty()) "Warren" else pathNames(tree, sheet.browsePath).joinToString(" / ")
+
+    Text("Cloning \"${sheet.itemName}\"", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral600)
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (sheet.browsePath.isNotEmpty()) {
+            IconButton(onClick = { viewModel.clonePickerGoBack() }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Burrow.Neutral600)
+            }
+        }
+        Text(
+            crumb,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Burrow.Text,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+    androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 240.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        if (node.folders.isEmpty()) {
+            Text(
+                "No subfolders here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Burrow.Neutral600,
+                modifier = Modifier.padding(vertical = 10.dp),
+            )
+        }
+        node.folders.forEach { f ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.clonePickerOpenFolder(f.id) }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    f.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Burrow.Text,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(">", style = MaterialTheme.typography.bodyMedium, color = Burrow.Neutral400)
+            }
+        }
+    }
+
+    androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
+    Button(
+        onClick = { viewModel.confirmCloneHere() },
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(containerColor = Burrow.Accent, contentColor = Burrow.Bg),
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text("Clone here") }
 }
 
 @Composable

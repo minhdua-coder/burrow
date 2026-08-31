@@ -28,6 +28,10 @@ object FileStorage {
         storagePath(context, id).delete()
     }
 
+    fun copy(context: Context, sourceId: String, destId: String): Boolean = runCatching {
+        storagePath(context, sourceId).copyTo(storagePath(context, destId), overwrite = true)
+    }.isSuccess
+
     fun exists(context: Context, id: String): Boolean = storagePath(context, id).exists()
 
     fun readText(context: Context, id: String): String? = runCatching {

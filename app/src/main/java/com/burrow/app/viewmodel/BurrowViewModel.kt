@@ -12,6 +12,10 @@ import com.burrow.app.data.GithubAppAuth
 import com.burrow.app.data.LinkItem
 import com.burrow.app.data.Variable
 import com.burrow.app.data.buildEnvFile
+import com.burrow.app.data.cloneFile
+import com.burrow.app.data.cloneFolder
+import com.burrow.app.data.cloneLink
+import com.burrow.app.data.cloneVariable
 import com.burrow.app.data.detectGithubAppConfig
 import com.burrow.app.data.findNode
 import com.burrow.app.data.genId
@@ -228,6 +232,57 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         _state.update { it.copy(tree = newTree, sheet = null) }
         viewModelScope.launch { repository.saveTree(newTree) }
         showToast("Moved \"${s.itemName}\"")
+    }
+
+    fun openCloneFolder(item: FolderNode) = _state.update {
+        it.copy(sheet = Sheet.CloneItemPicker(DeleteKind.FOLDER, item.id, item.name, it.path))
+    }
+    fun openCloneLink(item: LinkItem) = _state.update {
+        it.copy(sheet = Sheet.CloneItemPicker(DeleteKind.LINK, item.id, item.name, it.path))
+    }
+    fun openCloneVariable(item: Variable) = _state.update {
+        it.copy(sheet = Sheet.CloneItemPicker(DeleteKind.VARIABLE, item.id, item.key, it.path))
+    }
+    fun openCloneFile(item: FileItem) = _state.update {
+        it.copy(sheet = Sheet.CloneItemPicker(DeleteKind.FILE, item.id, item.name, it.path))
+    }
+    fun clonePickerOpenFolder(id: String) = _state.update {
+        val s = it.sheet as? Sheet.CloneItemPicker ?: return@update it
+        it.copy(sheet = s.copy(browsePath = s.browsePath + id))
+    }
+    fun clonePickerGoBack() = _state.update {
+        val s = it.sheet as? Sheet.CloneItemPicker ?: return@update it
+        it.copy(sheet = s.copy(browsePath = s.browsePath.dropLast(1)))
+    }
+    fun confirmCloneHere() {
+        val s = _state.value.sheet as? Sheet.CloneItemPicker ?: return
+        val context = getApplication<Application>()
+        val newTree = when (s.kind) {
+            DeleteKind.FOLDER -> {
+                val (tree, fileIdMap) = cloneFolder(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+                fileIdMap.forEach { (oldId, newId) -> FileStorage.copy(context, oldId, newId) }
+                tree
+            }
+            DeleteKind.LINK -> cloneLink(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+            DeleteKind.VARIABLE -> cloneVariable(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+            DeleteKind.FILE -> {
+                val result = cloneFile(_state.value.tree, s.sourcePath, s.itemId, s.browsePath)
+                if (result == null) {
+                    showToast("Couldn't clone")
+                    return
+                }
+                val (tree, newId) = result
+                FileStorage.copy(context, s.itemId, newId)
+                tree
+            }
+        }
+        if (newTree == _state.value.tree) {
+            showToast("Couldn't clone")
+            return
+        }
+        _state.update { it.copy(tree = newTree, sheet = null) }
+        viewModelScope.launch { repository.saveTree(newTree) }
+        showToast("Cloned \"${s.itemName}\"")
     }
 
     private fun generateForFormat(format: RandomFormat, length: Int): String =
