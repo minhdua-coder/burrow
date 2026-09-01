@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +49,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
+import com.burrow.app.auth.BiometricAuth
 import com.burrow.app.data.FolderNode
 import com.burrow.app.data.ID_SUFFIX_LENGTHS
 import com.burrow.app.data.findNode
@@ -257,6 +261,31 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                     }
                 }
                 ActionButton("Change PIN") { viewModel.openChangePin() }
+                androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Unlock with fingerprint", style = MaterialTheme.typography.bodyMedium, color = Burrow.Text)
+                    Switch(
+                        checked = state.biometricEnabled,
+                        onCheckedChange = { checked ->
+                            val activity = context as? FragmentActivity
+                            when {
+                                !checked -> viewModel.setBiometricEnabled(false)
+                                activity == null || !BiometricAuth.isAvailable(activity) ->
+                                    viewModel.showToast("Biometric unlock isn't available on this device")
+                                else -> BiometricAuth.authenticate(
+                                    activity = activity,
+                                    title = "Enable fingerprint unlock",
+                                    onSuccess = { viewModel.setBiometricEnabled(true) },
+                                )
+                            }
+                        },
+                        colors = SwitchDefaults.colors(checkedTrackColor = Burrow.Accent700),
+                    )
+                }
             }
             is Sheet.ChangePinForm -> {
                 LabeledField("Current PIN", sheet.current, viewModel::updatePinCurrent, "••••", keyboardType = KeyboardType.NumberPassword, password = true)

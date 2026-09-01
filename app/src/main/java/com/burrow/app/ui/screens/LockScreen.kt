@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +39,7 @@ private val PAD_KEYS: List<PadKey> =
     (1..9).map { PadKey.Digit(it.toString()) } + listOf(PadKey.Empty, PadKey.Digit("0"), PadKey.Back)
 
 @Composable
-fun LockScreen(state: UiState, viewModel: BurrowViewModel) {
+fun LockScreen(state: UiState, viewModel: BurrowViewModel, onBiometricClick: (() -> Unit)? = null) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -111,6 +112,17 @@ fun LockScreen(state: UiState, viewModel: BurrowViewModel) {
             }
         }
         Spacer(Modifier.height(16.dp))
+        if (onBiometricClick != null) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable(onClick = onBiometricClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Fingerprint, contentDescription = "Unlock with biometrics", tint = Burrow.Accent700)
+            }
+            Spacer(Modifier.height(8.dp))
+        }
         Text("Hint: 1234", style = MaterialTheme.typography.bodySmall, color = Burrow.Neutral500)
     }
 }

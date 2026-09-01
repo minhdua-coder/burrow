@@ -87,4 +87,5 @@ data class UiState(
     val pinInput: String = "",
     val pinError: Boolean = false,
     val pin: String = "1234",
+    val biometricEnabled: Boolean = false,
 )

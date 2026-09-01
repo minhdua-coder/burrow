@@ -13,8 +13,8 @@ android {
         applicationId = "com.burrow.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.3.0"
+        versionCode = 15
+        versionName = "1.4.0"
     }
 
     signingConfigs {
@@ -69,6 +69,7 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

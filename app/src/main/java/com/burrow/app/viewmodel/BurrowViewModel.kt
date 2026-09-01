@@ -49,7 +49,8 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             val tree = repository.treeFlow.first()
             val pin = repository.pinFlow.first()
-            _state.update { it.copy(tree = tree, pin = pin) }
+            val biometricEnabled = repository.biometricEnabledFlow.first()
+            _state.update { it.copy(tree = tree, pin = pin, biometricEnabled = biometricEnabled) }
         }
     }
 
@@ -538,4 +539,11 @@ class BurrowViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
     fun backspacePin() = _state.update { it.copy(pinInput = it.pinInput.dropLast(1), pinError = false) }
+
+    fun onBiometricSuccess() = _state.update { it.copy(locked = false, pinInput = "") }
+
+    fun setBiometricEnabled(enabled: Boolean) {
+        _state.update { it.copy(biometricEnabled = enabled) }
+        viewModelScope.launch { repository.saveBiometricEnabled(enabled) }
+    }
 }
