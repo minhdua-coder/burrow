@@ -272,10 +272,11 @@ fun SheetContent(state: UiState, viewModel: BurrowViewModel) {
                         checked = state.biometricEnabled,
                         onCheckedChange = { checked ->
                             val activity = context as? FragmentActivity
+                            val unavailableReason = activity?.let { BiometricAuth.unavailabilityReason(it) }
                             when {
                                 !checked -> viewModel.setBiometricEnabled(false)
-                                activity == null || !BiometricAuth.isAvailable(activity) ->
-                                    viewModel.showToast("Biometric unlock isn't available on this device")
+                                activity == null || unavailableReason != null ->
+                                    viewModel.showToast(unavailableReason ?: "Biometric unlock isn't available on this device")
                                 else -> BiometricAuth.authenticate(
                                     activity = activity,
                                     title = "Enable fingerprint unlock",
